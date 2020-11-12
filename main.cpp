@@ -3,7 +3,6 @@
 #include "matrix.h"
 #include "circuit.h"
 
-#define MATRIX_TEST
 
 #ifdef MATRIX_TEST
 #include "matrix_test.h"
@@ -28,7 +27,7 @@ int main() {
     long_test(10);
 #endif
 
-    //circuit::Node n = circuit::Node::input_node();
-    //n.print();
+    std::vector<circuit::Node> nodes = circuit::Node::input_nodes();
+    circuit::Node::print_nodes(nodes);
     return 0;
 }
