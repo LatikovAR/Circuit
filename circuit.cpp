@@ -29,6 +29,7 @@ Node Node::input_node() {
     }
     if(std::cin.fail()) {
         std::cout << "Warning: invalid str input format\n";
+        std::cout << buf << std::endl;
         is_prev_input_ok = false;
         return Node(0, 0, 0.0, 0.0);
     }
