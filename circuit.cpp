@@ -2,16 +2,18 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <utility>
+#include <set>
 
 #include "circuit.h"
 
 namespace circuit {
 
 //------------------------------------Node methods-------------------------------------
-bool Node::is_prev_input_ok = true;
-bool Node::is_eof = false;
+bool Edge::is_prev_input_ok = true;
+bool Edge::is_eof = false;
 
-Node Node::input_node() {
+Edge Edge::input_edge() {
     size_t begin = 0;
     size_t end = 0;
     double R = 0;
@@ -27,11 +29,10 @@ Node Node::input_node() {
     if(std::cin.eof()) {
         is_eof = true;
     }
-    if(std::cin.fail()) {
+    if(std::cin.fail() && !(std::cin.eof())) {
         std::cout << "Warning: invalid str input format\n";
-        std::cout << buf << std::endl;
         is_prev_input_ok = false;
-        return Node(0, 0, 0.0, 0.0);
+        return Edge(0, 0, 0.0, 0.0);
     }
 
     std::stringstream s_buf;
@@ -42,70 +43,70 @@ Node Node::input_node() {
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(0, 0, 0.0, 0.0);
+        return Edge(0, 0, 0.0, 0.0);
     }
 
     s_buf >> trash;
     if(!(s_buf.good()) || (trash != "--")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, 0, 0.0, 0.0);
+        return Edge(begin, 0, 0.0, 0.0);
     }
 
     s_buf >> end;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, 0, 0.0, 0.0);
+        return Edge(begin, 0, 0.0, 0.0);
     }
 
     s_buf >> trash;
     if(!(s_buf.good()) || (trash != ",")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, end, 0.0, 0.0);
+        return Edge(begin, end, 0.0, 0.0);
     }
 
     s_buf >> R;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, end, 0.0, 0.0);
+        return Edge(begin, end, 0.0, 0.0);
     }
 
     s_buf >> trash;
     if((s_buf.eof() && s_buf) && (trash == ";")) {
-        return Node(begin, end, R, 0.0);
+        return Edge(begin, end, R, 0.0);
     }
 
     if(!(s_buf.good()) || (trash != ";")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, end, R, 0.0);
+        return Edge(begin, end, R, 0.0);
     }
 
     s_buf >> U;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Node(begin, end, R, 0.0);
+        return Edge(begin, end, R, 0.0);
     }
 
     s_buf >> trash;
     if((s_buf.eof() && s_buf) && (trash == "V")) {
-        return Node(begin, end, R, U);
+        return Edge(begin, end, R, U);
     }
 
     std::cout << "Warning: invalid input format\n";
     is_prev_input_ok = false;
-    return Node(begin, end, R, U);
+    return Edge(begin, end, R, U);
 }
 
-std::vector<Node> Node::input_nodes() {
-    std::vector<Node> nodes;
+std::vector<Edge> Edge::input_edges() {
+    std::vector<Edge> nodes;
 
     while(is_eof == false) {
-        Node node = input_node();
+        Edge node = input_edge();
         if(is_prev_input_ok) {
             nodes.push_back(node);
         }
@@ -114,16 +115,16 @@ std::vector<Node> Node::input_nodes() {
     return nodes;
 }
 
-void Node::print() const {
+void Edge::print() const {
     std::cout << "Node: " << begin_ << " -- " << end_ << std::endl;
     std::cout << "R = " << R_ << std::endl;
     std::cout << "U = " << U_ << std::endl;
     std::cout << std::endl;
 }
 
-void Node::print_nodes(const std::vector<Node>& nodes) {
-    for(const Node& node : nodes) {
-        node.print();
+void Edge::print_edges(const std::vector<Edge>& edges) {
+    for(const Edge& edge : edges) {
+        edge.print();
     }
 }
 
@@ -131,10 +132,62 @@ void Node::print_nodes(const std::vector<Node>& nodes) {
 
 //---------------------------------------Circuit methods-------------------------------------
 
-Circuit::Circuit(std::vector<Node> nodes):
-    nodes_(nodes)
+Circuit::Circuit(const std::vector<Edge>& edges):
+    edges_(edges)
 {
+    build_circuit_graph();
+    print_vertices_all();
+}
 
+//for build_circuit_graph
+namespace  {
+struct comp {
+    bool operator() (const std::pair<size_t, Vertex*>& lhs,
+                     const std::pair<size_t, Vertex*>& rhs) const {
+        return (lhs.first < rhs.first);
+    }
+};
+}
+
+void Circuit::build_circuit_graph() {
+    //getting all numbers of existing vertices
+    std::set<size_t> vertices_nums;
+    for(const Edge& edge : edges_) {
+        vertices_nums.insert(edge.begin());
+        vertices_nums.insert(edge.end());
+    }
+
+    //initialising vector of vertices
+    vertices_.resize(vertices_nums.size());
+
+    //building set of vertices_nums connected with vector of vertices
+    std::set<std::pair<size_t, Vertex*>, comp> vertices_connected_nums;
+    size_t i = 0;
+    for(const size_t& elem : vertices_nums) {
+        vertices_connected_nums.insert(std::pair<size_t, Vertex*>(elem, &(vertices_[i])));
+        i++;
+    }
+
+    //pushing nodes in vector of vertices
+    //using default comparator for pair
+    for(const Edge& edge : edges_) {
+        auto iter_begin = vertices_connected_nums.find(std::pair<size_t, Vertex*>(edge.begin(), nullptr));
+        auto iter_end = vertices_connected_nums.find(std::pair<size_t, Vertex*>(edge.end(), nullptr));
+        (*iter_begin).second->add_node((*iter_end).second, &edge);
+        (*iter_end).second->add_node((*iter_begin).second, &edge);
+    }
+}
+
+void Circuit::print_vertices_all() const {
+    for(const Vertex& vertex: vertices_) {
+        for(size_t i = 0; i < vertex.nodes_num(); ++i) {
+            std::cout << vertex.edge(i)->begin() << " -- " <<
+                         vertex.edge(i)->end() << ", R = " <<
+                         vertex.edge(i)->R() << "; U = " <<
+                         vertex.edge(i)->U() << "; I = " <<
+                         vertex.edge(i)->I() << ";\n";
+        }
+    }
 }
 
 }

@@ -27,7 +27,7 @@ int main() {
     long_test(10);
 #endif
 
-    std::vector<circuit::Node> nodes = circuit::Node::input_nodes();
-    circuit::Node::print_nodes(nodes);
+    std::vector<circuit::Edge> edges = circuit::Edge::input_edges();
+    circuit::Circuit circ(edges);
     return 0;
 }
