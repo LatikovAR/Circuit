@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "matrix.h"
+#include "dynamic_array.h"
 
 namespace circuit {
 
@@ -20,6 +21,8 @@ private:
     static bool is_prev_input_ok;
     static bool is_eof;
 public:
+    Edge_Info() {}
+
     Edge_Info(size_t begin, size_t end, double R, double U):
         begin_(begin), end_(end),
         R_(R), U_(U) {}
@@ -48,11 +51,13 @@ enum Edge_Condition { IN_CYCLE, OUT_OF_CYCLE, UNDEFINED };
 
 class Vertex; //declaration for Edge
 
-struct Edge {
+struct Edge final {
     Vertex* vertex1;
     Vertex* vertex2;
     Edge_Info* edge_info;
     Edge_Condition condition;
+
+    Edge() {}
 
     Edge(Vertex* vertex1_inp, Vertex* vertex2_inp, Edge_Info* edge_info_inp):
         vertex1(vertex1_inp),
@@ -78,8 +83,6 @@ public:
     void add_edge(Edge* edge) {
         edges_.push_back(edge);
         ++num_edges_in_cycle_;
-        std::cout << "ttt";
-        //edg(*(edges_[edges_.size() - 1]));
     }
 
     size_t edges_num() const { return edges_.size(); }
@@ -102,14 +105,16 @@ public:
 
 class Circuit final {
 private:
-    std::vector<Edge_Info> edges_info_; //circuit information about edges
-    std::vector<Vertex> vertices_; //graph vertices contains here after build_circuit_graph()
-    std::vector<Edge> edges_; //graph edges contains here after build_circuit_graph()
+    dyn_arr::dynamic_array<Edge_Info> edges_info_; //circuit information about edges
+    dyn_arr::dynamic_array<Vertex> vertices_; //graph vertices contains here after build_circuit_graph()
+    dyn_arr::dynamic_array<Edge> edges_; //graph edges contains here after build_circuit_graph()
 
     void build_circuit_graph();
 
     void check_elems_beyond_cycles();
+
     void find_all_currents();
+
 public:
     Circuit(const std::vector<Edge_Info>& edges_info_);
 

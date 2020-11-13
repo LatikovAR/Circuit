@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "circuit.h"
+#include "dynamic_array.h"
 
 namespace circuit {
 
@@ -29,7 +30,7 @@ Edge_Info Edge_Info::input_edge_info() {
     std::getline(std::cin, buf, '\n');
     if(std::cin.eof()) {
         is_eof = true;
-        if(buf == "") {
+        if(buf == "") { //sometimes it can be useful
             is_prev_input_ok = false;
             return Edge_Info(0, 0, 0.0, 0.0);
         }
@@ -138,8 +139,22 @@ void Edge_Info::print_edges_info(const std::vector<Edge_Info> &edges_info) {
 
 //---------------------------------------Circuit methods-------------------------------------
 
+//for Circuit constructor
+namespace  {
+size_t num_of_vertices(const std::vector<Edge_Info>& edges_info) {
+    std::set<size_t> vertices_nums;
+    for(const Edge_Info& edge_info : edges_info) {
+        vertices_nums.insert(edge_info.begin());
+        vertices_nums.insert(edge_info.end());
+    }
+    return vertices_nums.size();
+}
+}
+
 Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
-    edges_info_(edges_info)
+    edges_info_(edges_info),
+    vertices_(num_of_vertices(edges_info)),
+    edges_(edges_info.size())
 {
     build_circuit_graph();
     print_vertices_all();
@@ -163,24 +178,26 @@ struct comp {
 void Circuit::build_circuit_graph() {
     //getting all numbers of existing vertices
     std::set<size_t> vertices_nums;
-    for(const Edge_Info& edge_info : edges_info_) {
-        vertices_nums.insert(edge_info.begin());
-        vertices_nums.insert(edge_info.end());
+    for(size_t i = 0; i < edges_info_.size(); ++i) {
+        vertices_nums.insert(edges_info_[i].begin());
+        vertices_nums.insert(edges_info_[i].end());
     }
 
-    //initialising vector of vertices
-    vertices_.resize(vertices_nums.size());
+    assert(vertices_.size() == vertices_nums.size());
 
     //building set of vertices_nums connected with vector of vertices
     std::set<std::pair<size_t, Vertex*>, comp> vertices_connected_nums;
     size_t i = 0;
     for(const size_t& elem : vertices_nums) {
         vertices_connected_nums.insert(std::pair<size_t, Vertex*>(elem, &(vertices_[i])));
-        i++;
+        ++i;
     }
 
+
+
     //pushing edges and vertices in circuit
-    for(Edge_Info& edge_info : edges_info_) {
+    for(size_t i = 0; i < edges_info_.size(); ++i) {
+        Edge_Info& edge_info = edges_info_[i];
         //getting pointers to connected vertices
         auto iter1 = vertices_connected_nums.find(std::pair<size_t, Vertex*>(edge_info.begin(), nullptr));
         auto iter2 = vertices_connected_nums.find(std::pair<size_t, Vertex*>(edge_info.end(), nullptr));
@@ -188,9 +205,7 @@ void Circuit::build_circuit_graph() {
         Vertex* vert2 = iter2->second;
 
         //creating edge
-
-
-        edges_.push_back(Edge(vert1, vert2, &edge_info));
+        edges_[i] = Edge(vert1, vert2, &edge_info);
 
         //connecting vertices with edge
         vert1->add_edge(&(edges_[edges_.size() - 1]));
@@ -200,16 +215,16 @@ void Circuit::build_circuit_graph() {
 
 //for debug
 void Circuit::print_vertices_all() const {
-    for(const Vertex& vertex: vertices_) {
-        for(size_t i = 0; i < vertex.edges_num(); ++i) {
-            assert(vertex.edge(i) != nullptr);
-            std::cout << vertex.edge(i)->edge_info->begin() << " -- " <<
-                         vertex.edge(i)->edge_info->end() << ", R = " <<
-                         vertex.edge(i)->edge_info->R() << "; U = " <<
-                         vertex.edge(i)->edge_info->U() << "; I = ";
+    for(size_t i = 0; i < vertices_.size(); ++i) {
+        for(size_t i = 0; i < vertices_[i].edges_num(); ++i) {
+            assert(vertices_[i].edge(i) != nullptr);
+            std::cout << vertices_[i].edge(i)->edge_info->begin() << " -- " <<
+                         vertices_[i].edge(i)->edge_info->end() << ", R = " <<
+                         vertices_[i].edge(i)->edge_info->R() << "; U = " <<
+                         vertices_[i].edge(i)->edge_info->U() << "; I = ";
 
-            if(vertex.edge(i)->edge_info->is_solved())
-                std::cout << vertex.edge(i)->edge_info->I() << ";\n";
+            if(vertices_[i].edge(i)->edge_info->is_solved())
+                std::cout << vertices_[i].edge(i)->edge_info->I() << ";\n";
 
             else std::cout << "UNDEFINED\n";
         }
@@ -219,14 +234,14 @@ void Circuit::print_vertices_all() const {
 
 //for debug
 void Circuit::print_edges_all() const {
-    for(const Edge& edge: edges_) {
-        std::cout << edge.edge_info->begin() << " -- " <<
-                     edge.edge_info->end() << ", R = " <<
-                     edge.edge_info->R() << "; U = " <<
-                     edge.edge_info->U() << "; I = ";
+    for(size_t i = 0; i < edges_.size(); ++i) {
+        std::cout << edges_[i].edge_info->begin() << " -- " <<
+                     edges_[i].edge_info->end() << ", R = " <<
+                     edges_[i].edge_info->R() << "; U = " <<
+                     edges_[i].edge_info->U() << "; I = ";
 
-        if(edge.edge_info->is_solved())
-            std::cout << edge.edge_info->I() << ";\n";
+        if(edges_[i].edge_info->is_solved())
+            std::cout << edges_[i].edge_info->I() << ";\n";
 
         else std::cout << "UNDEFINED\n";
     }
@@ -240,11 +255,11 @@ void Circuit::print_edges_all() const {
 //all separated vertices will be marked as visited
 //all separated edges will be marked as OUT_OF_CYCLE
 void Circuit::check_elems_beyond_cycles() {
-    for(Vertex& vertex : vertices_) {
+    for(size_t i = 0; i < vertices_.size(); ++i) {
 
-        if(vertex.visited == false) { //unnecessary to check already separated vertex
+        if(vertices_[i].visited == false) { //unnecessary to check already separated vertex
 
-            if(vertex.edges_num_in_cycle_or_undefined() == 1) {
+            if(vertices_[i].edges_num_in_cycle_or_undefined() == 1) {
 
             }
         }
