@@ -29,6 +29,10 @@ Edge_Info Edge_Info::input_edge_info() {
     std::getline(std::cin, buf, '\n');
     if(std::cin.eof()) {
         is_eof = true;
+        if(buf == "") {
+            is_prev_input_ok = false;
+            return Edge_Info(0, 0, 0.0, 0.0);
+        }
     }
     if(std::cin.fail() && !(std::cin.eof())) {
         std::cout << "Warning: invalid str input format\n";
