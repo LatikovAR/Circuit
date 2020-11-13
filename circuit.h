@@ -61,18 +61,7 @@ struct Edge {
         condition(UNDEFINED) {}
 };
 
-//for debug
-void edg(const Edge& edge) {
-    std::cout << edge.edge_info->begin() << " -- " <<
-                 edge.edge_info->end() << ", R = " <<
-                 edge.edge_info->R() << "; U = " <<
-                 edge.edge_info->U() << "; I = ";
 
-    if(edge.edge_info->is_solved())
-        std::cout << edge.edge_info->I() << ";\n";
-
-    else std::cout << "UNDEFINED\n";
-}
 
 //This class describes a graph vertex
 class Vertex final {
@@ -90,7 +79,7 @@ public:
         edges_.push_back(edge);
         ++num_edges_in_cycle_;
         std::cout << "ttt";
-        edg(*(edges_[edges_.size() - 1]));
+        //edg(*(edges_[edges_.size() - 1]));
     }
 
     size_t edges_num() const { return edges_.size(); }
