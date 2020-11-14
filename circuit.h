@@ -57,7 +57,7 @@ struct Edge final {
     Edge_Info* edge_info;
     Edge_Condition condition;
 
-    Edge() {}
+    Edge(): vertex1(nullptr), vertex2(nullptr), edge_info(nullptr) {}
 
     Edge(Vertex* vertex1_inp, Vertex* vertex2_inp, Edge_Info* edge_info_inp):
         vertex1(vertex1_inp),
@@ -75,23 +75,17 @@ private:
 
     //counter of edges from graph cycles
     //after adding all edges supposed in_cycle for this counter before check
-    size_t num_edges_in_cycle_ = 0;
+    size_t num_edges_undefined_ = 0;
 public:
     bool visited = false; //for graph traversal
 
     //adding edges after starting solving process is UB
     void add_edge(Edge* edge) {
         edges_.push_back(edge);
-        ++num_edges_in_cycle_;
+        if (edge->condition == UNDEFINED) ++num_edges_undefined_;
     }
 
     size_t edges_num() const { return edges_.size(); }
-
-    //returns nullptr if edge_num invalid
-    Edge* edge(size_t edge_num) {
-        if(edge_num >= edges_.size()) return nullptr;
-        return edges_[edge_num];
-    }
 
     //returns nullptr if edge_num invalid
     const Edge* edge(size_t edge_num) const {
@@ -99,12 +93,30 @@ public:
         return edges_[edge_num];
     }
 
-    size_t edges_num_in_cycle_or_undefined() const { return num_edges_in_cycle_; }
+    size_t num_edges_undefined() const { return num_edges_undefined_; }
+
+    const Edge* find_undefined_edge() const;
+
+    //returns another Vertex of this lone edge (nullptr if can't be done)
+    Vertex* define_lone_edge_as_out_of_cycle();
 };
 
 
 class Circuit final {
 private:
+
+    //Dynamic_array is non-standart container that used for Circuit data
+    //Circuit data containers should have some specifications:
+    //
+    //1) They mustn't allow allocations after building, because circuit graph has to store
+    //some pointers to its data. So non-const vector and its analogs can't be used
+    //
+    //2) They must allow to change their elements (with constant position in memory)
+    //So const vector and its analogs can't be used
+    //
+    //3) A size of the containers is computing during runtime and unknown at the
+    //compilation moment. So array can't be used.
+
     dyn_arr::dynamic_array<Edge_Info> edges_info_; //circuit information about edges
     dyn_arr::dynamic_array<Vertex> vertices_; //graph vertices contains here after build_circuit_graph()
     dyn_arr::dynamic_array<Edge> edges_; //graph edges contains here after build_circuit_graph()

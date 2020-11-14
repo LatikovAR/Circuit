@@ -109,22 +109,25 @@ Edge_Info Edge_Info::input_edge_info() {
 }
 
 std::vector<Edge_Info> Edge_Info::input_edges_info() {
-    std::vector<Edge_Info> edges;
+    std::vector<Edge_Info> edges_info;
 
     while(is_eof == false) {
-        Edge_Info edge = input_edge_info();
+        Edge_Info edge_info = input_edge_info();
         if(is_prev_input_ok) {
-            edges.push_back(edge);
+            edges_info.push_back(edge_info);
         }
     }
 
-    return edges;
+    return edges_info;
 }
 
 void Edge_Info::print() const {
     std::cout << "Edge: " << begin_ << " -- " << end_ << std::endl;
     std::cout << "R = " << R_ << std::endl;
     std::cout << "U = " << U_ << std::endl;
+    if(is_solved())
+        std::cout << "I = " << I_ << "\n";
+    else std::cout << "I = UNDEFINED\n";
     std::cout << std::endl;
 }
 
@@ -134,6 +137,53 @@ void Edge_Info::print_edges_info(const std::vector<Edge_Info> &edges_info) {
     }
 }
 
+
+
+//---------------------------------------Vertex methods--------------------------------------
+
+const Edge* Vertex::find_undefined_edge() const {
+    for(const Edge* edge: edges_) {
+        if(edge->condition == UNDEFINED) return edge;
+    }
+    return nullptr;
+}
+
+
+Vertex* Vertex::define_lone_edge_as_out_of_cycle() {
+    if(num_edges_undefined_ != 1) return nullptr;
+
+    for(Edge* edge: edges_) {
+        if(edge->condition == UNDEFINED) {
+            edge->condition = OUT_OF_CYCLE;
+            num_edges_undefined_--;
+
+            //if edge is out of cycle, it can't have any current
+            edge->edge_info->set_I(0.0);
+
+            if(this != edge->vertex1) {
+                assert((edge->vertex1->num_edges_undefined_ > 0) &&
+                       "Invalid graph: num_edges_undefined counter is invalid");
+
+                (edge->vertex1->num_edges_undefined_)--;
+
+                return edge->vertex1;
+            }
+            else {
+                assert((this != edge->vertex2) &&
+                       "Invalid graph: lone undefined edge can't be cycle");
+                assert((edge->vertex2->num_edges_undefined_ > 0) &&
+                       "Invalid graph: num_edges_undefined counter is invalid");
+
+                (edge->vertex2->num_edges_undefined_)--;
+
+                return edge->vertex2;
+            }
+        }
+    }
+
+    assert(0 && "Invalid graph: num_edges_undefined counter is invalid");
+    return nullptr;
+}
 
 
 
@@ -158,8 +208,8 @@ Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
 {
     build_circuit_graph();
     print_vertices_all();
-    print_edges_all();
     find_all_currents();
+    print_vertices_all();
 }
 
 
@@ -208,25 +258,17 @@ void Circuit::build_circuit_graph() {
         edges_[i] = Edge(vert1, vert2, &edge_info);
 
         //connecting vertices with edge
-        vert1->add_edge(&(edges_[edges_.size() - 1]));
-        vert2->add_edge(&(edges_[edges_.size() - 1]));
+        vert1->add_edge(&(edges_[i]));
+        vert2->add_edge(&(edges_[i]));
     }
 }
 
 //for debug
 void Circuit::print_vertices_all() const {
     for(size_t i = 0; i < vertices_.size(); ++i) {
-        for(size_t i = 0; i < vertices_[i].edges_num(); ++i) {
-            assert(vertices_[i].edge(i) != nullptr);
-            std::cout << vertices_[i].edge(i)->edge_info->begin() << " -- " <<
-                         vertices_[i].edge(i)->edge_info->end() << ", R = " <<
-                         vertices_[i].edge(i)->edge_info->R() << "; U = " <<
-                         vertices_[i].edge(i)->edge_info->U() << "; I = ";
-
-            if(vertices_[i].edge(i)->edge_info->is_solved())
-                std::cout << vertices_[i].edge(i)->edge_info->I() << ";\n";
-
-            else std::cout << "UNDEFINED\n";
+        for(size_t j = 0; j < vertices_[i].edges_num(); ++j) {
+            assert(vertices_[i].edge(j) != nullptr);
+            vertices_[i].edge(j)->edge_info->print();
         }
         std::cout << std::endl;
     }
@@ -235,15 +277,7 @@ void Circuit::print_vertices_all() const {
 //for debug
 void Circuit::print_edges_all() const {
     for(size_t i = 0; i < edges_.size(); ++i) {
-        std::cout << edges_[i].edge_info->begin() << " -- " <<
-                     edges_[i].edge_info->end() << ", R = " <<
-                     edges_[i].edge_info->R() << "; U = " <<
-                     edges_[i].edge_info->U() << "; I = ";
-
-        if(edges_[i].edge_info->is_solved())
-            std::cout << edges_[i].edge_info->I() << ";\n";
-
-        else std::cout << "UNDEFINED\n";
+        edges_[i].edge_info->print();
     }
 }
 
@@ -259,8 +293,17 @@ void Circuit::check_elems_beyond_cycles() {
 
         if(vertices_[i].visited == false) { //unnecessary to check already separated vertex
 
-            if(vertices_[i].edges_num_in_cycle_or_undefined() == 1) {
+            if(vertices_[i].num_edges_undefined() == 1) {
 
+                //if we define edge of this vertex as OUT_OF_CYCLE
+                //we should go and check another vertex, connected with this edge
+
+                Vertex *next_vert = &(vertices_[i]);
+
+                do {
+                    next_vert = next_vert->define_lone_edge_as_out_of_cycle();
+                    assert(next_vert != nullptr);
+                } while(next_vert->num_edges_undefined() == 1);
             }
         }
     }
