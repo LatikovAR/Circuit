@@ -20,7 +20,7 @@ public:
 
     dynamic_array(const dynamic_array& data);
 
-    dynamic_array<T>& operator= (const dynamic_array<T>& data);
+    dynamic_array<T>& operator= (const dynamic_array& data)&;
 
     ~dynamic_array() { if(size_ > 0) delete [] data_; }
 
@@ -50,7 +50,7 @@ dynamic_array<T>::dynamic_array(const dynamic_array& data): size_(data.size()) {
 }
 
 template <typename T>
-dynamic_array<T>& dynamic_array<T>::operator= (const dynamic_array<T>& data) {
+dynamic_array<T>& dynamic_array<T>::operator= (const dynamic_array& data)& {
     if(this != &data) {
         if(size_ > 0) delete [] data_;
 

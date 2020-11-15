@@ -57,14 +57,18 @@ struct Edge final {
     Edge_Info* edge_info;
     Edge_Condition condition;
 
-    Edge(): vertex1(nullptr), vertex2(nullptr), edge_info(nullptr) {}
+    Edge() {}
 
     Edge(Vertex* vertex1_inp, Vertex* vertex2_inp, Edge_Info* edge_info_inp):
         vertex1(vertex1_inp),
         vertex2(vertex2_inp),
         edge_info(edge_info_inp),
         condition(UNDEFINED) {}
+
+    //returns nullptr if edge is cycle
+    Vertex* next_vertex(const Vertex* cur_vertex);
 };
+
 
 
 
@@ -76,6 +80,7 @@ private:
     //counter of edges from graph cycles
     //after adding all edges supposed in_cycle for this counter before check
     size_t num_edges_undefined_ = 0;
+
 public:
     bool visited = false; //for graph traversal
 
@@ -99,6 +104,12 @@ public:
 
     //returns another Vertex of this lone edge (nullptr if can't be done)
     Vertex* define_lone_edge_as_out_of_cycle();
+
+    //0 - ok, 1 - vertex can be in cycle
+    int define_vertex_outside_any_cycle_as_visited();
+
+    static void find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                           std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
 };
 
 
@@ -125,13 +136,22 @@ private:
 
     void check_elems_beyond_cycles();
 
+    //this method find all "linearly independent" cycles
+    //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
+    void find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+
     void find_all_currents();
 
+    //also set I in this edges to 0
+    void define_all_undefined_edges_as_out_of_cycle();
 public:
     Circuit(const std::vector<Edge_Info>& edges_info_);
 
-    void print_vertices_all() const;
-    void print_edges_all() const;
+    void print_vertices_all() const; //for debug
+    void print_edges_all() const; //for debug
+
+    //for debug, and also check cycles validity
+    void print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) const;
 };
 
 

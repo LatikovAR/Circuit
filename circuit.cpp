@@ -116,6 +116,7 @@ std::vector<Edge_Info> Edge_Info::input_edges_info() {
         if(is_prev_input_ok) {
             edges_info.push_back(edge_info);
         }
+
     }
 
     return edges_info;
@@ -136,6 +137,18 @@ void Edge_Info::print_edges_info(const std::vector<Edge_Info> &edges_info) {
         edge_info.print();
     }
 }
+
+
+
+
+//---------------------------------------Edge methods----------------------------------------
+
+Vertex* Edge::next_vertex(const Vertex* cur_vertex) {
+    if(vertex1 != cur_vertex) return vertex1;
+    if(vertex2 != cur_vertex) return vertex2;
+    return nullptr;
+}
+
 
 
 
@@ -160,30 +173,133 @@ Vertex* Vertex::define_lone_edge_as_out_of_cycle() {
             //if edge is out of cycle, it can't have any current
             edge->edge_info->set_I(0.0);
 
-            if(this != edge->vertex1) {
-                assert((edge->vertex1->num_edges_undefined_ > 0) &&
-                       "Invalid graph: num_edges_undefined counter is invalid");
+            //we shouldn't check this vertices any more
+            visited = true;
 
-                (edge->vertex1->num_edges_undefined_)--;
+            Vertex* next_vertex = edge->next_vertex(this);
 
-                return edge->vertex1;
-            }
-            else {
-                assert((this != edge->vertex2) &&
-                       "Invalid graph: lone undefined edge can't be cycle");
-                assert((edge->vertex2->num_edges_undefined_ > 0) &&
-                       "Invalid graph: num_edges_undefined counter is invalid");
+            assert((next_vertex != nullptr) &&
+                   "Invalid graph: lone undefined edge can't be cycle");
 
-                (edge->vertex2->num_edges_undefined_)--;
+            assert((next_vertex->num_edges_undefined_ > 0) &&
+                   "Invalid graph: num_edges_undefined counter is invalid");
 
-                return edge->vertex2;
-            }
+            (next_vertex->num_edges_undefined_)--;
+
+            return next_vertex;
         }
     }
 
     assert(0 && "Invalid graph: num_edges_undefined counter is invalid");
     return nullptr;
 }
+
+
+int Vertex::define_vertex_outside_any_cycle_as_visited() {
+    for(const Edge* edge : edges_) {
+        if(edge->condition != OUT_OF_CYCLE) return -1;
+    }
+
+    visited = true;
+
+    return 0;
+}
+
+
+namespace  { //for Vertex::find_cycle()
+void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                       size_t begin_iterator,
+                       std::vector<std::vector<std::pair<Vertex*, Edge*>>>& cycles_data,
+                       Edge* last_edge) {
+    std::vector<std::pair<Vertex*, Edge*>> cycle;
+
+    for(size_t i = begin_iterator; i < (trace.first.size() - 1); ++i) {
+        //pushing vertex and edge in cycle
+
+        Vertex* pushed_vertex = trace.first[i].first;
+        Edge* pushed_edge = trace.second[i];
+        cycle.push_back(std::pair<Vertex*, Edge*>(pushed_vertex, pushed_edge));
+
+        //marking edge before pushing vertex as IN_CYCLE
+        trace.second[i]->condition = IN_CYCLE;
+    }
+
+    //last cycle element
+    size_t pushed_vertex_iterator = trace.first.size() - 1;
+    Vertex* pushed_vertex = trace.first[pushed_vertex_iterator].first;
+    cycle.push_back(std::pair<Vertex*, Edge*>(pushed_vertex, last_edge));
+    last_edge->condition = IN_CYCLE;
+
+    cycles_data.push_back(cycle);
+}
+}
+
+
+void Vertex::find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                        std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+    assert(trace.first.size() > 0);
+
+    while(1) {
+        Vertex* cur_vertex = trace.first[trace.first.size() - 1].first;
+        size_t edge_iterator = trace.first[trace.first.size() - 1].second;
+        //I can't use size_t& edge_iterator because vector can make reallocations
+        //so it's changing will be written by really strange way
+        //but this places will be marked as //edge_iterator++ =)
+
+        //end condition
+        if((trace.first.size() == 1) && (cur_vertex->edges_num() == edge_iterator)) break;
+
+        //if no more edges for current vertex, we should go back
+        if(cur_vertex->edges_num() == edge_iterator) {
+            trace.first.pop_back();
+            trace.second.pop_back();
+            continue;
+        }
+
+        Edge* cur_edge = cur_vertex->edges_[edge_iterator];
+
+        //we mustn't go back to previous vertex with the same way
+        if((trace.second.size() > 0) && (cur_edge == trace.second[trace.second.size() - 1])) {
+            (trace.first[trace.first.size() - 1].second)++; //edge_iterator++;
+            continue;
+        }
+
+
+        //if we know, that this edge already checked
+        if(cur_edge->condition != UNDEFINED) {
+            (trace.first[trace.first.size() - 1].second)++; //edge_iterator++;
+            continue;
+        }
+
+        Vertex* next_vertex = cur_edge->next_vertex(cur_vertex);
+
+        if(next_vertex->visited == true) {
+
+            //searching next_vertex in trace
+            size_t i = trace.first.size();
+            while(i > 0) {
+                --i;
+                if(trace.first[i].first == next_vertex) {
+                    add_cycle_to_data(trace, i, all_cycles, cur_edge);
+                }
+            }
+
+            (trace.first[trace.first.size() - 1].second)++; //edge_iterator++;
+            continue;
+        }
+
+        else {
+            //going to the next vertex
+            trace.second.push_back(cur_edge);
+            (trace.first[trace.first.size() - 1].second)++; //edge_iterator++;
+            trace.first.push_back(std::pair<Vertex*, size_t>(next_vertex, 0));
+            next_vertex->visited = true;
+            continue;
+        }
+    }
+}
+
+
 
 
 
@@ -225,6 +341,7 @@ struct comp {
 };
 }
 
+
 void Circuit::build_circuit_graph() {
     //getting all numbers of existing vertices
     std::set<size_t> vertices_nums;
@@ -265,7 +382,10 @@ void Circuit::build_circuit_graph() {
 
 //for debug
 void Circuit::print_vertices_all() const {
+    std::cout << "All vertices:\n";
     for(size_t i = 0; i < vertices_.size(); ++i) {
+        std::cout << "Vertex:\n";
+        std::cout << "visited = " << vertices_[i].visited << std::endl;
         for(size_t j = 0; j < vertices_[i].edges_num(); ++j) {
             assert(vertices_[i].edge(j) != nullptr);
             vertices_[i].edge(j)->edge_info->print();
@@ -276,6 +396,7 @@ void Circuit::print_vertices_all() const {
 
 //for debug
 void Circuit::print_edges_all() const {
+    std::cout << "All edges:\n";
     for(size_t i = 0; i < edges_.size(); ++i) {
         edges_[i].edge_info->print();
     }
@@ -293,6 +414,13 @@ void Circuit::check_elems_beyond_cycles() {
 
         if(vertices_[i].visited == false) { //unnecessary to check already separated vertex
 
+            if(vertices_[i].num_edges_undefined() == 0) {
+                std::cout << "Warning: it looks like algorithm invalidation";
+
+                int res = vertices_[i].define_vertex_outside_any_cycle_as_visited();
+                assert((res == 0) && "Invalid num_edges_undefined() counter");
+            }
+
             if(vertices_[i].num_edges_undefined() == 1) {
 
                 //if we define edge of this vertex as OUT_OF_CYCLE
@@ -304,13 +432,126 @@ void Circuit::check_elems_beyond_cycles() {
                     next_vert = next_vert->define_lone_edge_as_out_of_cycle();
                     assert(next_vert != nullptr);
                 } while(next_vert->num_edges_undefined() == 1);
+
+                //if another vertex, connected with this edge, hasn't any more undefined edges
+                if(next_vert->num_edges_undefined() == 0) {
+                    int res = next_vert->define_vertex_outside_any_cycle_as_visited();
+                    assert((res == 0) && "Invalid num_edges_undefined() counter");
+                }
             }
         }
     }
 }
 
+
+
+void Circuit::find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+    all_cycles.clear();
+
+    for(size_t i = 0; i < vertices_.size(); ++i) {
+        if(vertices_[i].visited == false) {
+            vertices_[i].visited = true;
+
+            //this storage contain trace of the graph traversal in vertices and edges
+            //for all vertices also contains iterators of edge,
+            //which was selected in this traversal
+            std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>> trace;
+            trace.first.push_back(std::pair<Vertex*, size_t>(&(vertices_[i]), 0));
+            vertices_[i].find_cycle(trace, all_cycles);
+        }
+    }
+}
+
+
+void Circuit::print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) const {
+    std::cout << "Cycles:\n";
+    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles) {
+        if(cycle.size() == 0) continue;
+
+        Edge* cur_edge = cycle[0].second;
+        Edge* next_edge;
+
+        if(cycle.size() == 1) {
+            std::cout << cur_edge->edge_info->begin() << " -- " << cur_edge->edge_info->end();
+        }
+        else {
+            size_t next_vert_num;
+            size_t start_vert_num;
+            next_vert_num = cur_edge->edge_info->begin();
+
+            next_edge = cycle[1].second;
+            if((next_edge->edge_info->begin() != next_vert_num) &&
+               (next_edge->edge_info->end() != next_vert_num)) {
+                std::cout << next_vert_num << " -- ";
+                start_vert_num = next_vert_num;
+                next_vert_num = cur_edge->edge_info->end();
+            }
+            else {
+                std::cout << cur_edge->edge_info->end() << " -- ";
+                start_vert_num = cur_edge->edge_info->end();
+            }
+            assert(((next_edge->edge_info->begin() == next_vert_num) ||
+                    (next_edge->edge_info->end() == next_vert_num)) && "invalid cycle");
+
+            for(size_t i = 1; i < cycle.size() - 1; ++i) {
+                std::cout << next_vert_num << " -- ";
+                cur_edge = next_edge;
+                next_edge = cycle[i + 1].second;
+
+                if(next_vert_num == cur_edge->edge_info->begin()) {
+                    next_vert_num = cur_edge->edge_info->end();
+                }
+                else {
+                    assert((next_vert_num == cur_edge->edge_info->end()) && "invalid cycle");
+                    next_vert_num = cur_edge->edge_info->begin();
+                }
+            }
+
+            std::cout << next_vert_num << " -- ";
+            cur_edge = next_edge;
+            if(next_vert_num == cur_edge->edge_info->begin()) {
+                next_vert_num = cur_edge->edge_info->end();
+            }
+            else {
+                assert((next_vert_num == cur_edge->edge_info->end()) && "invalid cycle");
+                next_vert_num = cur_edge->edge_info->begin();
+            }
+            std::cout << next_vert_num;
+
+            assert((next_vert_num == start_vert_num) && "invalid cycle");
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+
 void Circuit::find_all_currents() {
     check_elems_beyond_cycles(); //optional
+
+    //all cycles will be contained here like a sequence of vertices and edges
+    //vertex[0] -- edge[0] -- vertex[1] -- edge[1] --......
+    //begin and end vertex/edge no matter
+    std::vector<std::vector<std::pair<Vertex*, Edge*>>> all_cycles;
+
+    //this method find all "linearly independent" cycles
+    //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
+    find_cycles(all_cycles);
+
+    //we do this, because all edges in cycle already defined as IN_CYCLE
+    //it also set I in this edges to 0
+    define_all_undefined_edges_as_out_of_cycle();
+
+    print_cycles_all(all_cycles);
+}
+
+void Circuit::define_all_undefined_edges_as_out_of_cycle() {
+    for(size_t i = 0; i < edges_.size(); ++i) {
+        if(edges_[i].condition == UNDEFINED) {
+            edges_[i].condition = OUT_OF_CYCLE;
+            edges_[i].edge_info->set_I(0.0);
+         }
+    }
 }
 
 }
