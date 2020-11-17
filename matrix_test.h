@@ -17,4 +17,6 @@ void unit_test11();
 void unit_test12();
 
 void long_test(int n_tests);
+
+void matrix_test();
 }

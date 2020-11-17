@@ -15,7 +15,7 @@ namespace circuit {
 bool Edge_Info::is_prev_input_ok = true;
 bool Edge_Info::is_eof = false;
 
-Edge_Info Edge_Info::input_edge_info() {
+Edge_Info Edge_Info::input_edge_info(size_t edge_number) {
     size_t begin = 0;
     size_t end = 0;
     double R = 0;
@@ -32,13 +32,13 @@ Edge_Info Edge_Info::input_edge_info() {
         is_eof = true;
         if(buf == "") { //sometimes it can be useful
             is_prev_input_ok = false;
-            return Edge_Info(0, 0, 0.0, 0.0);
+            return Edge_Info(0, 0, 0.0, 0.0, 0);
         }
     }
     if(std::cin.fail() && !(std::cin.eof())) {
         std::cout << "Warning: invalid str input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(0, 0, 0.0, 0.0);
+        return Edge_Info(0, 0, 0.0, 0.0, 0);
     }
 
     std::stringstream s_buf;
@@ -49,72 +49,73 @@ Edge_Info Edge_Info::input_edge_info() {
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(0, 0, 0.0, 0.0);
+        return Edge_Info(0, 0, 0.0, 0.0, 0);
     }
 
     s_buf >> trash;
     if(!(s_buf.good()) || (trash != "--")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, 0, 0.0, 0.0);
+        return Edge_Info(begin, 0, 0.0, 0.0, 0);
     }
 
     s_buf >> end;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, 0, 0.0, 0.0);
+        return Edge_Info(begin, 0, 0.0, 0.0, 0);
     }
 
     s_buf >> trash;
     if(!(s_buf.good()) || (trash != ",")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, end, 0.0, 0.0);
+        return Edge_Info(begin, end, 0.0, 0.0, 0);
     }
 
     s_buf >> R;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, end, 0.0, 0.0);
+        return Edge_Info(begin, end, 0.0, 0.0, 0);
     }
 
     s_buf >> trash;
     if((s_buf.eof() && s_buf) && (trash == ";")) {
-        return Edge_Info(begin, end, R, 0.0);
+        return Edge_Info(begin, end, R, 0.0, edge_number);
     }
 
     if(!(s_buf.good()) || (trash != ";")) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, end, R, 0.0);
+        return Edge_Info(begin, end, R, 0.0, 0);
     }
 
     s_buf >> U;
     if(!(s_buf.good())) {
         std::cout << "Warning: invalid input format\n";
         is_prev_input_ok = false;
-        return Edge_Info(begin, end, R, 0.0);
+        return Edge_Info(begin, end, R, 0.0, 0);
     }
 
     s_buf >> trash;
     if((s_buf.eof() && s_buf) && (trash == "V")) {
-        return Edge_Info(begin, end, R, U);
+        return Edge_Info(begin, end, R, U, edge_number);
     }
 
     std::cout << "Warning: invalid input format\n";
     is_prev_input_ok = false;
-    return Edge_Info(begin, end, R, U);
+    return Edge_Info(begin, end, R, U, 0);
 }
 
 std::vector<Edge_Info> Edge_Info::input_edges_info() {
     std::vector<Edge_Info> edges_info;
-
+    size_t edge_number = 0;
     while(is_eof == false) {
-        Edge_Info edge_info = input_edge_info();
+        Edge_Info edge_info = input_edge_info(edge_number);
         if(is_prev_input_ok) {
             edges_info.push_back(edge_info);
+            ++edge_number;
         }
 
     }
@@ -123,7 +124,8 @@ std::vector<Edge_Info> Edge_Info::input_edges_info() {
 }
 
 void Edge_Info::print() const {
-    std::cout << "Edge: " << begin_ << " -- " << end_ << std::endl;
+    std::cout << "Edge: " << number_ << std::endl;
+    std::cout << begin_ << " -- " << end_ << std::endl;
     std::cout << "R = " << R_ << std::endl;
     std::cout << "U = " << U_ << std::endl;
     if(is_solved())
@@ -211,6 +213,7 @@ void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::v
                        size_t begin_iterator,
                        std::vector<std::vector<std::pair<Vertex*, Edge*>>>& cycles_data,
                        Edge* last_edge) {
+
     std::vector<std::pair<Vertex*, Edge*>> cycle;
 
     for(size_t i = begin_iterator; i < (trace.first.size() - 1); ++i) {
@@ -221,7 +224,7 @@ void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::v
         cycle.push_back(std::pair<Vertex*, Edge*>(pushed_vertex, pushed_edge));
 
         //marking edge before pushing vertex as IN_CYCLE
-        trace.second[i]->condition = IN_CYCLE;
+        pushed_edge->condition = IN_CYCLE;
     }
 
     //last cycle element
@@ -275,6 +278,7 @@ void Vertex::find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::
 
         if(next_vertex->visited == true) {
 
+            //maybe it is a cycle
             //searching next_vertex in trace
             size_t i = trace.first.size();
             while(i > 0) {
@@ -332,7 +336,7 @@ Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
 
 //for set in the build_circuit_graph()
 namespace  {
-struct comp {
+struct comp_for_build_circuit_graph {
     bool operator() (const std::pair<size_t, Vertex*>& lhs,
                      const std::pair<size_t, Vertex*>& rhs) const {
         //std::cout << 1 << std::endl; - for my interest =)
@@ -353,10 +357,12 @@ void Circuit::build_circuit_graph() {
     assert(vertices_.size() == vertices_nums.size());
 
     //building set of vertices_nums connected with vector of vertices
-    std::set<std::pair<size_t, Vertex*>, comp> vertices_connected_nums;
+    //also defines nums of vertices
+    std::set<std::pair<size_t, Vertex*>, comp_for_build_circuit_graph > vertices_connected_nums;
     size_t i = 0;
     for(const size_t& elem : vertices_nums) {
         vertices_connected_nums.insert(std::pair<size_t, Vertex*>(elem, &(vertices_[i])));
+        vertices_[i].define_number(elem);
         ++i;
     }
 
@@ -384,7 +390,7 @@ void Circuit::build_circuit_graph() {
 void Circuit::print_vertices_all() const {
     std::cout << "All vertices:\n";
     for(size_t i = 0; i < vertices_.size(); ++i) {
-        std::cout << "Vertex:\n";
+        std::cout << "Vertex: " << vertices_[i].number() << std::endl;
         std::cout << "visited = " << vertices_[i].visited << std::endl;
         for(size_t j = 0; j < vertices_[i].edges_num(); ++j) {
             assert(vertices_[i].edge(j) != nullptr);
@@ -468,59 +474,24 @@ void Circuit::print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, 
     for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles) {
         if(cycle.size() == 0) continue;
 
-        Edge* cur_edge = cycle[0].second;
-        Edge* next_edge;
+        size_t next_vert_num = cycle[0].first->number();
 
-        if(cycle.size() == 1) {
-            std::cout << cur_edge->edge_info->begin() << " -- " << cur_edge->edge_info->end();
-        }
-        else {
-            size_t next_vert_num;
-            size_t start_vert_num;
-            next_vert_num = cur_edge->edge_info->begin();
-
-            next_edge = cycle[1].second;
-            if((next_edge->edge_info->begin() != next_vert_num) &&
-               (next_edge->edge_info->end() != next_vert_num)) {
-                std::cout << next_vert_num << " -- ";
-                start_vert_num = next_vert_num;
-                next_vert_num = cur_edge->edge_info->end();
-            }
-            else {
-                std::cout << cur_edge->edge_info->end() << " -- ";
-                start_vert_num = cur_edge->edge_info->end();
-            }
-            assert(((next_edge->edge_info->begin() == next_vert_num) ||
-                    (next_edge->edge_info->end() == next_vert_num)) && "invalid cycle");
-
-            for(size_t i = 1; i < cycle.size() - 1; ++i) {
-                std::cout << next_vert_num << " -- ";
-                cur_edge = next_edge;
-                next_edge = cycle[i + 1].second;
-
-                if(next_vert_num == cur_edge->edge_info->begin()) {
-                    next_vert_num = cur_edge->edge_info->end();
-                }
-                else {
-                    assert((next_vert_num == cur_edge->edge_info->end()) && "invalid cycle");
-                    next_vert_num = cur_edge->edge_info->begin();
-                }
-            }
-
+        for(size_t i = 0; i < cycle.size(); ++i) {
+            assert((next_vert_num == cycle[i].first->number()) && "Invalid cycle");
             std::cout << next_vert_num << " -- ";
-            cur_edge = next_edge;
-            if(next_vert_num == cur_edge->edge_info->begin()) {
-                next_vert_num = cur_edge->edge_info->end();
+
+            Edge_Info* cur_edge_info = cycle[i].second->edge_info;
+            if(next_vert_num == cur_edge_info->begin()) {
+                next_vert_num = cur_edge_info->end();
             }
             else {
-                assert((next_vert_num == cur_edge->edge_info->end()) && "invalid cycle");
-                next_vert_num = cur_edge->edge_info->begin();
+                assert((next_vert_num == cur_edge_info->end()) && "Invalid cycle");
+                next_vert_num = cur_edge_info->begin();
             }
-            std::cout << next_vert_num;
-
-            assert((next_vert_num == start_vert_num) && "invalid cycle");
         }
-        std::cout << std::endl;
+
+        assert((next_vert_num == cycle[0].first->number()) && "Invalid cycle");
+        std::cout << next_vert_num << std::endl;
     }
     std::cout << std::endl;
 }
@@ -554,4 +525,21 @@ void Circuit::define_all_undefined_edges_as_out_of_cycle() {
     }
 }
 
+
+void Circuit::set_second_numbers_in_edge_info() {
+    size_t second_num = 0;
+    for(size_t i = 0; i < edges_info_.size(); ++i) {
+        if(!edges_info_[i].is_solved()) {
+            edges_info_[i].set_second_number(second_num);
+            ++second_num;
+        }
+    }
 }
+
+
+void Circuit::make_and_solve_linear_cicruit_equations(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+    set_second_numbers_in_edge_info();
+    //TO DO
+}
+
+} //namespace circuit

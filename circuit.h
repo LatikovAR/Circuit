@@ -16,18 +16,21 @@ private:
     double U_;
     double I_;
     bool solved_ = false; //true when I_ will be defined
+    size_t number_;
+    size_t second_number_; //numeration for solving equations, without already defined edges
 
     //for correct input of the edges
     static bool is_prev_input_ok;
     static bool is_eof;
 public:
+
     Edge_Info() {}
 
-    Edge_Info(size_t begin, size_t end, double R, double U):
+    Edge_Info(size_t begin, size_t end, double R, double U, size_t number):
         begin_(begin), end_(end),
-        R_(R), U_(U) {}
+        R_(R), U_(U),  number_(number) {}
 
-    static Edge_Info input_edge_info();
+    static Edge_Info input_edge_info(size_t edge_number);
 
     static std::vector<Edge_Info> input_edges_info();
 
@@ -41,8 +44,11 @@ public:
     double U() const { return U_; }
     double I() const { return I_; } //undefined if solved_ == false
     bool is_solved() const { return solved_; }
+    size_t number() const { return  number_; }
+    size_t second_number() const { return  second_number_; }
 
     void set_I(double I) { I_ = I; solved_ = true; }
+    void set_second_number(size_t n) { second_number_ = n; }
 };
 
 
@@ -81,6 +87,7 @@ private:
     //after adding all edges supposed in_cycle for this counter before check
     size_t num_edges_undefined_ = 0;
 
+    size_t number_;
 public:
     bool visited = false; //for graph traversal
 
@@ -91,6 +98,10 @@ public:
     }
 
     size_t edges_num() const { return edges_.size(); }
+
+    size_t number() const { return number_; }
+
+    void define_number(size_t num) { number_ = num; }
 
     //returns nullptr if edge_num invalid
     const Edge* edge(size_t edge_num) const {
@@ -140,10 +151,14 @@ private:
     //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
     void find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
 
+    void make_and_solve_linear_cicruit_equations(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+
     void find_all_currents();
 
     //also set I in this edges to 0
     void define_all_undefined_edges_as_out_of_cycle();
+
+    void set_second_numbers_in_edge_info();
 public:
     Circuit(const std::vector<Edge_Info>& edges_info_);
 
