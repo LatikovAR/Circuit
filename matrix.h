@@ -34,7 +34,7 @@ public:
     virtual void print() const = 0;
 };
 
-
+template <typename T> class Matrix;
 
 template <typename T>
 class Square_Matrix final : public Abstract_Matrix<T> {
@@ -43,6 +43,8 @@ private:
     T **data_ = nullptr;
 
     using Abstract_Matrix<T>::is_match;
+
+    friend class Matrix<T>;
 
     void new_data();
 
@@ -68,6 +70,12 @@ public:
 
     void sub_row_to_row(size_t src_num, size_t dst_num) const;
 
+    void sub_row_to_row(size_t src_num, size_t dst_num, T koef) const;
+
+    void swap_rows(size_t row1_num, size_t row2_num) const;
+
+    void mult_row_on_number(size_t row_num, T number) const;
+
     T operator()(size_t row_i, size_t column_i) const override;
 
     size_t size() const { return size_; }
@@ -86,7 +94,8 @@ public:
 };
 
 
-template <typename T> class Matrix final : public Abstract_Matrix<T> {
+template <typename T>
+class Matrix final : public Abstract_Matrix<T> {
 private:
     size_t column_size_ = 0;
     size_t row_size_ = 0;
@@ -113,11 +122,19 @@ public:
 
     template<typename U> Matrix(const Matrix<U>& matr);
 
+    Matrix(const Square_Matrix<T>& matr): Matrix(matr.data_, matr.size_, matr.size_) {}
+
     void transpose();
 
     void add_row_to_row(size_t src_num, size_t dst_num) const;
 
     void sub_row_to_row(size_t src_num, size_t dst_num) const;
+
+    void sub_row_to_row(size_t src_num, size_t dst_num, T koef) const;
+
+    void swap_rows(size_t row1_num, size_t row2_num) const;
+
+    void mult_row_on_number(size_t row_num, T number) const;
 
     T operator()(size_t row_i, size_t column_i) const override;
 
@@ -270,9 +287,33 @@ void Square_Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num) const {
 }
 
 template<typename T>
+void Square_Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num, T koef) const {
+    assert((src_num < size_) && "invalid row number");
+    assert((dst_num < size_) && "invalid row number");
+
+    for(size_t i = 0; i < size_; ++i) {
+        data_[dst_num][i] -= (data_[src_num][i] * koef);
+    }
+}
+
+template<typename T>
+void Square_Matrix<T>::swap_rows(size_t row1_num, size_t row2_num) const {
+    assert((row1_num < size_) && (row2_num < size_) && "invalid row_num");
+    std::swap(data_[row1_num], data_[row2_num]);
+}
+
+template<typename T>
+void Square_Matrix<T>::mult_row_on_number(size_t row_num, T number) const {
+    assert((row_num < size_) && "invalid row_num");
+    for(size_t i = 0; i < size_; ++i) {
+        data_[row_num][i] *= number;
+    }
+}
+
+template<typename T>
 T Square_Matrix<T>::operator()(size_t row_i, size_t column_i) const {
-    assert((row_i < size_) && "invalid row");
-    assert((column_i < size_) && "invalid column");
+    assert((row_i < size_) && "invalid column");
+    assert((column_i < size_) && "invalid row");
     return data_[row_i][column_i];
 }
 
@@ -522,9 +563,33 @@ void Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num) const {
 }
 
 template<typename T>
+void Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num, T koef) const {
+    assert((src_num < row_size_) && "invalid row number");
+    assert((dst_num < row_size_) && "invalid row number");
+
+    for(size_t i = 0; i < row_size_; ++i) {
+        data_[dst_num][i] -= (data_[src_num][i] * koef);
+    }
+}
+
+template<typename T>
+void Matrix<T>::swap_rows(size_t row1_num, size_t row2_num) const {
+    assert((row1_num < column_size_) && (row2_num < column_size_) && "invalid row_num");
+    std::swap(data_[row1_num], data_[row2_num]);
+}
+
+template<typename T>
+void Matrix<T>::mult_row_on_number(size_t row_num, T number) const {
+    assert((row_num < column_size_) && "invalid row_num");
+    for(size_t i = 0; i < row_size_; ++i) {
+        data_[row_num][i] *= number;
+    }
+}
+
+template<typename T>
 T Matrix<T>::operator()(size_t column_i, size_t row_i) const {
-    assert((row_i < row_size_) && "invalid row");
-    assert((column_i < column_size_) && "invalid column");
+    assert((row_i < row_size_) && "invalid column");
+    assert((column_i < column_size_) && "invalid row");
     return data_[column_i][row_i];
 }
 
@@ -634,4 +699,24 @@ Matrix<T> operator*(const Matrix<T>& lhs, const Matrix<T>& rhs) {
     return tmp;
 }
 
-}
+//----------------------------------------some other functions--------------------------------
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Square_Matrix<double> matrix,
+                                                            std::vector<double> column);
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Square_Matrix<int> matrix,
+                                                            std::vector<int> column);
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Square_Matrix<long long> matrix,
+                                                            std::vector<long long> column);
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Matrix<double> matrix,
+                                                            std::vector<double> column);
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Matrix<int> matrix,
+                                                            std::vector<int> column);
+
+std::pair<std::vector<double>, bool> solve_linear_equations(Matrix<long long> matrix,
+                                                            std::vector<long long> column);
+
+} //namespace matrix

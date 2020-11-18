@@ -305,6 +305,53 @@ void unit_test12() {
     std::cout << "Unit_test12 complete.\n";
 }
 
+void unit_test13() {
+    Square_Matrix<int> m({{1, 1},
+                          {1, -1}});
+
+    std::vector<int> column = {1, 1};
+
+    std::pair<std::vector<double>, bool> answer = solve_linear_equations(m, column);
+
+    std::vector<double> real_answer = {1.0, 0.0};
+
+    assert(answer.second == true);
+    assert(answer.first == real_answer);
+
+    std::cout << "Unit_test13 complete.\n";
+}
+
+void unit_test14() {
+    Square_Matrix<long long> m({{1, 1, -1},
+                                {1, -1, -1},
+                                {1, 1, 1}});
+
+    std::vector<long long> column = {1, -1, 3};
+
+    std::pair<std::vector<double>, bool> answer = solve_linear_equations(m, column);
+
+    std::vector<double> real_answer = {1.0, 1.0, 1.0};
+
+    assert(answer.second == true);
+    assert(answer.first == real_answer);
+
+    std::cout << "Unit_test14 complete.\n";
+}
+
+void unit_test15() {
+    Square_Matrix<long long> m({{1, 1, 1},
+                                {1, 1, 1},
+                                {1, 1, 1}});
+
+    std::vector<long long> column = {1, 1, 2};
+
+    std::pair<std::vector<double>, bool> answer = solve_linear_equations(m, column);
+
+    assert(answer.second == false);
+
+    std::cout << "Unit_test15 complete.\n";
+}
+
 void matrix_test() {
     unit_test0();
     unit_test1();

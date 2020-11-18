@@ -11,7 +11,10 @@ using namespace matrix_tests;
 
 int main() {
 #ifdef MATRIX_TEST
-    matrix_test();
+    //matrix_test();
+    unit_test13();
+    unit_test14();
+    unit_test15();
 #endif
 
     std::vector<circuit::Edge_Info> edges_info = circuit::Edge_Info::input_edges_info();
