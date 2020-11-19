@@ -554,8 +554,8 @@ void Matrix<T>::add_row_to_row(size_t src_num, size_t dst_num) const {
 
 template<typename T>
 void Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num) const {
-    assert((src_num < row_size_) && "invalid row number");
-    assert((dst_num < row_size_) && "invalid row number");
+    assert((src_num < column_size_) && "invalid row number");
+    assert((dst_num < column_size_) && "invalid row number");
 
     for(size_t i = 0; i < row_size_; ++i) {
         data_[dst_num][i] -= data_[src_num][i];
@@ -564,8 +564,8 @@ void Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num) const {
 
 template<typename T>
 void Matrix<T>::sub_row_to_row(size_t src_num, size_t dst_num, T koef) const {
-    assert((src_num < row_size_) && "invalid row number");
-    assert((dst_num < row_size_) && "invalid row number");
+    assert((src_num < column_size_) && "invalid row number");
+    assert((dst_num < column_size_) && "invalid row number");
 
     for(size_t i = 0; i < row_size_; ++i) {
         data_[dst_num][i] -= (data_[src_num][i] * koef);

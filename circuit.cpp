@@ -8,6 +8,7 @@
 
 #include "circuit.h"
 #include "dynamic_array.h"
+#include "matrix.h"
 
 namespace circuit {
 
@@ -171,6 +172,7 @@ Vertex* Vertex::define_lone_edge_as_out_of_cycle() {
         if(edge->condition == UNDEFINED) {
             edge->condition = OUT_OF_CYCLE;
             num_edges_undefined_--;
+            condition = OUT_OF_CYCLE;
 
             //if edge is out of cycle, it can't have any current
             edge->edge_info->set_I(0.0);
@@ -203,6 +205,7 @@ int Vertex::define_vertex_outside_any_cycle_as_visited() {
     }
 
     visited = true;
+    condition = OUT_OF_CYCLE;
 
     return 0;
 }
@@ -223,8 +226,9 @@ void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::v
         Edge* pushed_edge = trace.second[i];
         cycle.push_back(std::pair<Vertex*, Edge*>(pushed_vertex, pushed_edge));
 
-        //marking edge before pushing vertex as IN_CYCLE
+        //marking pushing edge and vertex as IN_CYCLE
         pushed_edge->condition = IN_CYCLE;
+        pushed_vertex->condition = IN_CYCLE;
     }
 
     //last cycle element
@@ -232,6 +236,7 @@ void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::v
     Vertex* pushed_vertex = trace.first[pushed_vertex_iterator].first;
     cycle.push_back(std::pair<Vertex*, Edge*>(pushed_vertex, last_edge));
     last_edge->condition = IN_CYCLE;
+    pushed_vertex->condition = IN_CYCLE;
 
     cycles_data.push_back(cycle);
 }
@@ -327,9 +332,9 @@ Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
     edges_(edges_info.size())
 {
     build_circuit_graph();
-    print_vertices_all();
+    //print_vertices_all();
     find_all_currents();
-    print_vertices_all();
+    //print_vertices_all();
 }
 
 
@@ -392,6 +397,11 @@ void Circuit::print_vertices_all() const {
     for(size_t i = 0; i < vertices_.size(); ++i) {
         std::cout << "Vertex: " << vertices_[i].number() << std::endl;
         std::cout << "visited = " << vertices_[i].visited << std::endl;
+        std::cout << "Condition = ";
+        if(vertices_[i].condition == UNDEFINED) std::cout << "UNDEFINED";
+        if(vertices_[i].condition == OUT_OF_CYCLE) std::cout << "OUT_OF_CYCLE";
+        if(vertices_[i].condition == IN_CYCLE) std::cout << "IN_CYCLE";
+        std::cout << std::endl;
         for(size_t j = 0; j < vertices_[i].edges_num(); ++j) {
             assert(vertices_[i].edge(j) != nullptr);
             vertices_[i].edge(j)->edge_info->print();
@@ -509,24 +519,49 @@ void Circuit::find_all_currents() {
     //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
     find_cycles(all_cycles);
 
-    //we do this, because all edges in cycle already defined as IN_CYCLE
-    //it also set I in this edges to 0
-    define_all_undefined_edges_as_out_of_cycle();
+    //we do this, because all edges and vertices in cycle already defined as IN_CYCLE
+    //it also set I in this edges to 0.0
+    define_all_undefined_elems_as_out_of_cycle();
 
-    print_cycles_all(all_cycles);
+    std::pair<std::vector<double>, bool> answer;
+    answer = make_and_solve_linear_cicruit_equations(all_cycles);
+
+    if(answer.second == false) {
+        validity_ = false;
+        return;
+    }
+
+    //pushing answer in edge_info;
+    std::vector<double>& I_array = answer.first;
+    size_t edge_counter = 0;
+    for(size_t i = 0; i < edges_info_.size(); ++i) {
+        if(edges_info_[i].is_solved() == false) {
+            assert(edges_info_[i].second_number() == edge_counter);
+            edges_info_[i].set_I(I_array[edge_counter]);
+            ++edge_counter;
+        }
+    }
+
+    //print_cycles_all(all_cycles);
 }
 
-void Circuit::define_all_undefined_edges_as_out_of_cycle() {
+void Circuit::define_all_undefined_elems_as_out_of_cycle() {
     for(size_t i = 0; i < edges_.size(); ++i) {
         if(edges_[i].condition == UNDEFINED) {
             edges_[i].condition = OUT_OF_CYCLE;
             edges_[i].edge_info->set_I(0.0);
          }
     }
+
+    for(size_t i = 0; i < vertices_.size(); ++i) {
+        if(vertices_[i].condition == UNDEFINED) {
+            vertices_[i].condition = OUT_OF_CYCLE;
+         }
+    }
 }
 
 
-void Circuit::set_second_numbers_in_edge_info() {
+size_t Circuit::set_second_numbers_in_edge_info() {
     size_t second_num = 0;
     for(size_t i = 0; i < edges_info_.size(); ++i) {
         if(!edges_info_[i].is_solved()) {
@@ -534,12 +569,107 @@ void Circuit::set_second_numbers_in_edge_info() {
             ++second_num;
         }
     }
+    return second_num;
 }
 
 
-void Circuit::make_and_solve_linear_cicruit_equations(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
-    set_second_numbers_in_edge_info();
-    //TO DO
+std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equations
+(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+
+    size_t undef_edges_num = set_second_numbers_in_edge_info();
+
+    std::vector<std::vector<double>> lin_eq_matr;
+    std::vector<double> lin_eq_column;
+
+    //making linear equations from cycles
+    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles) {
+        std::vector<double> lin_eq;
+        double free_term = 0.0;
+        lin_eq.resize(undef_edges_num);
+        for(double& elem : lin_eq) {
+            elem = 0.0;
+        }
+
+        for(size_t i = 0; i < cycle.size(); ++i) {
+            Edge_Info* cur_edge_info = cycle[i].second->edge_info;
+
+            size_t prev_vert_num, next_vert_num;
+            prev_vert_num = cycle[i].first->number();
+            if(i < (cycle.size() - 1)) {
+                next_vert_num = cycle[i + 1].first->number();
+            }
+            else {
+                next_vert_num = cycle[0].first->number();
+            }
+
+            double direction_mult;
+            if((prev_vert_num == cur_edge_info->begin()) &&
+               (next_vert_num == cur_edge_info->end())) {
+                direction_mult = 1;
+            }
+            else {
+                assert((prev_vert_num == cur_edge_info->end()) &&
+                       (next_vert_num == cur_edge_info->begin()) && "invalid cycle");
+                direction_mult = -1;
+            }
+
+            lin_eq[cur_edge_info->second_number()] = cur_edge_info->R() * direction_mult;
+            free_term += (direction_mult * cur_edge_info->U());
+        }
+
+        lin_eq_matr.push_back(lin_eq);
+        lin_eq_column.push_back(free_term);
+    }
+
+    //making linear equations form vertices (some may be excess)
+    //uses only vertices in cycles
+    for(size_t i = 0; i < vertices_.size(); ++i) {
+        Vertex& vertex = vertices_[i];
+        if(vertex.condition != IN_CYCLE) {
+            continue;
+        }
+
+        std::vector<double> lin_eq;
+        lin_eq.resize(undef_edges_num);
+        for(double& elem : lin_eq) {
+            elem = 0.0;
+        }
+
+        for(size_t i = 0; i < vertex.edges_num(); ++i) {
+            const Edge* cur_edge = vertex.edge(i);
+            assert(cur_edge != nullptr);
+            if(cur_edge->condition == IN_CYCLE) {
+                const Edge_Info* cur_edge_info = cur_edge->edge_info;
+                double direction;
+
+                if(vertex.number() == cur_edge_info->begin()) {
+                    direction = 1.0;
+                }
+                else {
+                    assert((vertex.number() == cur_edge_info->end()) && "invalid_cycle");
+                    direction = -1.0;
+                }
+
+                lin_eq[cur_edge_info->second_number()] = direction;
+            }
+        }
+
+        lin_eq_matr.push_back(lin_eq);
+        lin_eq_column.push_back(0.0);
+    }
+
+    //solve linear equations
+    std::pair<std::vector<double>, bool> answer;
+    answer = matrix::solve_linear_equations(matrix::Matrix<double>(lin_eq_matr), lin_eq_column);
+    return answer;
+}
+
+void Circuit::print_circuit() const {
+    for(size_t i = 0; i < edges_info_.size(); ++i) {
+        const Edge_Info& cur_edge = edges_info_[i];
+        std::cout << cur_edge.begin() << " -- " << cur_edge.end() << " ";
+        std::cout << cur_edge.I() << " A" << std::endl;
+    }
 }
 
 } //namespace circuit

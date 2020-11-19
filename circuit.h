@@ -53,7 +53,7 @@ public:
 
 
 
-enum Edge_Condition { IN_CYCLE, OUT_OF_CYCLE, UNDEFINED };
+enum Condition { IN_CYCLE, OUT_OF_CYCLE, UNDEFINED };
 
 class Vertex; //declaration for Edge
 
@@ -61,7 +61,7 @@ struct Edge final {
     Vertex* vertex1;
     Vertex* vertex2;
     Edge_Info* edge_info;
-    Edge_Condition condition;
+    Condition condition;
 
     Edge() {}
 
@@ -90,6 +90,7 @@ private:
     size_t number_;
 public:
     bool visited = false; //for graph traversal
+    Condition condition = UNDEFINED;
 
     //adding edges after starting solving process is UB
     void add_edge(Edge* edge) {
@@ -127,6 +128,8 @@ public:
 class Circuit final {
 private:
 
+    bool validity_ = true;
+
     //Dynamic_array is non-standart container that used for Circuit data
     //Circuit data containers should have some specifications:
     //
@@ -151,14 +154,16 @@ private:
     //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
     void find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
 
-    void make_and_solve_linear_cicruit_equations(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+    std::pair<std::vector<double>, bool> make_and_solve_linear_cicruit_equations
+    (std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
 
     void find_all_currents();
 
     //also set I in this edges to 0
-    void define_all_undefined_edges_as_out_of_cycle();
+    void define_all_undefined_elems_as_out_of_cycle();
 
-    void set_second_numbers_in_edge_info();
+    //returns number of undefined edges
+    size_t set_second_numbers_in_edge_info();
 public:
     Circuit(const std::vector<Edge_Info>& edges_info_);
 
@@ -167,6 +172,11 @@ public:
 
     //for debug, and also check cycles validity
     void print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) const;
+
+    bool validity() const { return validity_; }
+
+    //Undefined if validity() = false
+    void print_circuit() const ;
 };
 
 
