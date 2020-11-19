@@ -366,6 +366,9 @@ void matrix_test() {
     unit_test10();
     unit_test11();
     unit_test12();
+    unit_test13();
+    unit_test14();
+    unit_test15();
     long_test(10);
 }
 

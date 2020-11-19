@@ -1,8 +1,10 @@
 #include <iostream>
 
 #include "matrix.h"
-#include "circuit.h"
 
+#ifdef WORK
+#include "circuit.h"
+#endif
 
 #ifdef MATRIX_TEST
 #include "matrix_test.h"
@@ -11,12 +13,9 @@ using namespace matrix_tests;
 
 int main() {
 #ifdef MATRIX_TEST
-    //matrix_test();
-    unit_test13();
-    unit_test14();
-    unit_test15();
+    matrix_test();
 #endif
-
+#ifdef WORK
     std::vector<circuit::Edge_Info> edges_info = circuit::Edge_Info::input_edges_info();
     circuit::Circuit circuit(edges_info);
 
@@ -27,5 +26,6 @@ int main() {
         std::cout << "Input circuit can't be solved.\n";
         std::cout << "Maybe you set some R = 0.0.\n";
     }
+#endif
     return 0;
 }
