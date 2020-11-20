@@ -2,8 +2,6 @@
 
 #include "matrix.h"
 
-#define WORK
-
 #ifdef WORK
 #include "circuit.h"
 #endif
