@@ -179,6 +179,4 @@ public:
     void print_circuit() const ;
 };
 
-
-
-}
+} //namespace circuit

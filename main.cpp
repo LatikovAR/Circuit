@@ -2,6 +2,8 @@
 
 #include "matrix.h"
 
+#define WORK
+
 #ifdef WORK
 #include "circuit.h"
 #endif
@@ -24,7 +26,7 @@ int main() {
     }
     else {
         std::cout << "Input circuit can't be solved.\n";
-        std::cout << "Maybe you set some R = 0.0.\n";
+        std::cout << "Maybe you set some R <= 0.0.\n";
     }
 #endif
     return 0;

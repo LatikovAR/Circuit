@@ -147,8 +147,8 @@ void Edge_Info::print_edges_info(const std::vector<Edge_Info> &edges_info) {
 //---------------------------------------Edge methods----------------------------------------
 
 Vertex* Edge::next_vertex(const Vertex* cur_vertex) {
-    if(vertex1 != cur_vertex) return vertex1;
-    if(vertex2 != cur_vertex) return vertex2;
+    if(vertex1 == cur_vertex) return vertex2;
+    if(vertex2 == cur_vertex) return vertex1;
     return nullptr;
 }
 
@@ -279,7 +279,8 @@ void Vertex::find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::
             continue;
         }
 
-        Vertex* next_vertex = cur_edge->next_vertex(cur_vertex);
+        Vertex* next_vertex = cur_edge->next_vertex(cur_vertex);  
+        assert((next_vertex != nullptr) && "invalid graph");
 
         if(next_vertex->visited == true) {
 
@@ -332,7 +333,9 @@ Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
     edges_(edges_info.size())
 {
     build_circuit_graph();
+    if(validity_ == false) return;
     //print_vertices_all();
+
     find_all_currents();
     //print_vertices_all();
 }
@@ -355,6 +358,10 @@ void Circuit::build_circuit_graph() {
     //getting all numbers of existing vertices
     std::set<size_t> vertices_nums;
     for(size_t i = 0; i < edges_info_.size(); ++i) {
+        if(edges_info_[i].R() < 0) {
+            validity_ = false;
+            return;
+        }
         vertices_nums.insert(edges_info_[i].begin());
         vertices_nums.insert(edges_info_[i].end());
     }
@@ -621,7 +628,7 @@ std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equa
         lin_eq_column.push_back(free_term);
     }
 
-    //making linear equations form vertices (some may be excess)
+    //making linear equations for vertices (some may be excess)
     //uses only vertices in cycles
     for(size_t i = 0; i < vertices_.size(); ++i) {
         Vertex& vertex = vertices_[i];
@@ -648,6 +655,11 @@ std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equa
                 else {
                     assert((vertex.number() == cur_edge_info->end()) && "invalid_cycle");
                     direction = -1.0;
+                }
+
+                //for cases like 1 -- 1
+                if(cur_edge_info->begin() == cur_edge_info->end()) {
+                    direction = 0.0;
                 }
 
                 lin_eq[cur_edge_info->second_number()] = direction;

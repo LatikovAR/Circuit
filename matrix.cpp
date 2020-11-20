@@ -12,7 +12,7 @@ namespace matrix {
 namespace {
 
 template <typename T>
-class Universal_Determinant {
+class Universal_Determinant final {
 private:
     Square_Matrix<T> matrix_;
     const size_t size_;
@@ -41,7 +41,7 @@ public:
 
 
 template<typename T>
-class Linear_Equations_System {
+class Linear_Equations_System final {
 private:
     Matrix<T> matrix_;
     std::vector<T> column_;
