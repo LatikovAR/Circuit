@@ -468,8 +468,8 @@ void Circuit::check_elems_beyond_cycles() {
 
 
 
-void Circuit::find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
-    all_cycles.clear();
+void Circuit::find_cycles() {
+    all_cycles_.clear();
 
     for(size_t i = 0; i < vertices_.size(); ++i) {
         if(vertices_[i].visited == false) {
@@ -480,15 +480,15 @@ void Circuit::find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& a
             //which was selected in this traversal
             std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>> trace;
             trace.first.push_back(std::pair<Vertex*, size_t>(&(vertices_[i]), 0));
-            vertices_[i].find_cycle(trace, all_cycles);
+            vertices_[i].find_cycle(trace, all_cycles_);
         }
     }
 }
 
 
-void Circuit::print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) const {
+void Circuit::print_cycles_all() const {
     std::cout << "Cycles:\n";
-    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles) {
+    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles_) {
         if(cycle.size() == 0) continue;
 
         size_t next_vert_num = cycle[0].first->number();
@@ -517,21 +517,17 @@ void Circuit::print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, 
 void Circuit::find_all_currents() {
     check_elems_beyond_cycles(); //optional
 
-    //all cycles will be contained here like a sequence of vertices and edges
-    //vertex[0] -- edge[0] -- vertex[1] -- edge[1] --......
-    //begin and end vertex/edge no matter
-    std::vector<std::vector<std::pair<Vertex*, Edge*>>> all_cycles;
 
     //this method find all "linearly independent" cycles
     //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
-    find_cycles(all_cycles);
+    find_cycles();
 
     //we do this, because all edges and vertices in cycle already defined as IN_CYCLE
     //it also set I in this edges to 0.0
     define_all_undefined_elems_as_out_of_cycle();
 
     std::pair<std::vector<double>, bool> answer;
-    answer = make_and_solve_linear_cicruit_equations(all_cycles);
+    answer = make_and_solve_linear_cicruit_equations();
 
     if(answer.second == false) {
         validity_ = false;
@@ -580,8 +576,7 @@ size_t Circuit::set_second_numbers_in_edge_info() {
 }
 
 
-std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equations
-(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equations() {
 
     size_t undef_edges_num = set_second_numbers_in_edge_info();
 
@@ -589,7 +584,7 @@ std::pair<std::vector<double>, bool> Circuit::make_and_solve_linear_cicruit_equa
     std::vector<double> lin_eq_column;
 
     //making linear equations from cycles
-    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles) {
+    for(const std::vector<std::pair<Vertex*, Edge*>>& cycle : all_cycles_) {
         std::vector<double> lin_eq;
         double free_term = 0.0;
         lin_eq.resize(undef_edges_num);

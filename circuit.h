@@ -146,16 +146,17 @@ private:
     dyn_arr::dynamic_array<Vertex> vertices_; //graph vertices contains here after build_circuit_graph()
     dyn_arr::dynamic_array<Edge> edges_; //graph edges contains here after build_circuit_graph()
 
+    std::vector<std::vector<std::pair<Vertex*, Edge*>>> all_cycles_; //in circuit graph
+
     void build_circuit_graph();
 
     void check_elems_beyond_cycles();
 
     //this method find all "linearly independent" cycles
     //"linearly independent" cycles - that cycles, which can't be maked from edges of the other cycles
-    void find_cycles(std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+    void find_cycles();
 
-    std::pair<std::vector<double>, bool> make_and_solve_linear_cicruit_equations
-    (std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+    std::pair<std::vector<double>, bool> make_and_solve_linear_cicruit_equations();
 
     void find_all_currents();
 
@@ -171,7 +172,7 @@ public:
     void print_edges_all() const; //for debug
 
     //for debug, and also check cycles validity
-    void print_cycles_all(const std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) const;
+    void print_cycles_all() const;
 
     bool validity() const { return validity_; }
 
