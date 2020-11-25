@@ -146,7 +146,7 @@ void Edge_Info::print_edges_info(const std::vector<Edge_Info> &edges_info) {
 
 //---------------------------------------Edge methods----------------------------------------
 
-Vertex* Edge::next_vertex(const Vertex* cur_vertex) {
+Circuit::Vertex* Circuit::Edge::next_vertex(const Vertex* cur_vertex) {
     if(vertex1 == cur_vertex) return vertex2;
     if(vertex2 == cur_vertex) return vertex1;
     return nullptr;
@@ -157,7 +157,7 @@ Vertex* Edge::next_vertex(const Vertex* cur_vertex) {
 
 //---------------------------------------Vertex methods--------------------------------------
 
-const Edge* Vertex::find_undefined_edge() const {
+const Circuit::Edge* Circuit::Vertex::find_undefined_edge() const {
     for(const Edge* edge: edges_) {
         if(edge->condition == UNDEFINED) return edge;
     }
@@ -165,7 +165,7 @@ const Edge* Vertex::find_undefined_edge() const {
 }
 
 
-Vertex* Vertex::define_lone_edge_as_out_of_cycle() {
+Circuit::Vertex* Circuit::Vertex::define_lone_edge_as_out_of_cycle() {
     if(num_edges_undefined_ != 1) return nullptr;
 
     for(Edge* edge: edges_) {
@@ -199,7 +199,7 @@ Vertex* Vertex::define_lone_edge_as_out_of_cycle() {
 }
 
 
-int Vertex::define_vertex_outside_any_cycle_as_visited() {
+int Circuit::Vertex::define_vertex_outside_any_cycle_as_visited() {
     for(const Edge* edge : edges_) {
         if(edge->condition != OUT_OF_CYCLE) return -1;
     }
@@ -211,11 +211,11 @@ int Vertex::define_vertex_outside_any_cycle_as_visited() {
 }
 
 
-namespace  { //for Vertex::find_cycle()
-void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
-                       size_t begin_iterator,
-                       std::vector<std::vector<std::pair<Vertex*, Edge*>>>& cycles_data,
-                       Edge* last_edge) {
+
+void Circuit::Vertex::add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                                        size_t begin_iterator,
+                                        std::vector<std::vector<std::pair<Vertex*, Edge*>>>& cycles_data,
+                                        Edge* last_edge) {
 
     std::vector<std::pair<Vertex*, Edge*>> cycle;
 
@@ -240,11 +240,11 @@ void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::v
 
     cycles_data.push_back(cycle);
 }
-}
 
 
-void Vertex::find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
-                        std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
+
+void Circuit::Vertex::find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                                 std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles) {
     assert(trace.first.size() > 0);
 
     while(1) {
@@ -342,16 +342,14 @@ Circuit::Circuit(const std::vector<Edge_Info>& edges_info):
 
 
 
-//for set in the build_circuit_graph()
-namespace  {
-struct comp_for_build_circuit_graph {
+struct Circuit::comp_for_build_circuit_graph {
     bool operator() (const std::pair<size_t, Vertex*>& lhs,
                      const std::pair<size_t, Vertex*>& rhs) const {
         //std::cout << 1 << std::endl; - for my interest =)
         return (lhs.first < rhs.first);
     }
 };
-}
+
 
 
 void Circuit::build_circuit_graph() {

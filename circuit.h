@@ -53,80 +53,86 @@ public:
 
 
 
-enum Condition { IN_CYCLE, OUT_OF_CYCLE, UNDEFINED };
-
-class Vertex; //declaration for Edge
-
-struct Edge final {
-    Vertex* vertex1;
-    Vertex* vertex2;
-    Edge_Info* edge_info;
-    Condition condition;
-
-    Edge() {}
-
-    Edge(Vertex* vertex1_inp, Vertex* vertex2_inp, Edge_Info* edge_info_inp):
-        vertex1(vertex1_inp),
-        vertex2(vertex2_inp),
-        edge_info(edge_info_inp),
-        condition(UNDEFINED) {}
-
-    //returns nullptr if edge is cycle
-    Vertex* next_vertex(const Vertex* cur_vertex);
-};
-
-
-
-
-//This class describes a graph vertex
-class Vertex final {
-private:
-    std::vector<Edge*> edges_; //edges from this vertex
-
-    //counter of edges from graph cycles
-    //after adding all edges supposed in_cycle for this counter before check
-    size_t num_edges_undefined_ = 0;
-
-    size_t number_;
-public:
-    bool visited = false; //for graph traversal
-    Condition condition = UNDEFINED;
-
-    //adding edges after starting solving process is UB
-    void add_edge(Edge* edge) {
-        edges_.push_back(edge);
-        if (edge->condition == UNDEFINED) ++num_edges_undefined_;
-    }
-
-    size_t edges_num() const { return edges_.size(); }
-
-    size_t number() const { return number_; }
-
-    void define_number(size_t num) { number_ = num; }
-
-    //returns nullptr if edge_num invalid
-    const Edge* edge(size_t edge_num) const {
-        if(edge_num >= edges_.size()) return nullptr;
-        return edges_[edge_num];
-    }
-
-    size_t num_edges_undefined() const { return num_edges_undefined_; }
-
-    const Edge* find_undefined_edge() const;
-
-    //returns another Vertex of this lone edge (nullptr if can't be done)
-    Vertex* define_lone_edge_as_out_of_cycle();
-
-    //0 - ok, 1 - vertex can be in cycle
-    int define_vertex_outside_any_cycle_as_visited();
-
-    static void find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
-                           std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
-};
-
 
 class Circuit final {
 private:
+    enum Condition { IN_CYCLE, OUT_OF_CYCLE, UNDEFINED };
+
+    class Vertex; //declaration for Edge
+
+    struct Edge final {
+        Vertex* vertex1;
+        Vertex* vertex2;
+        Edge_Info* edge_info;
+        Condition condition;
+
+        Edge() {}
+
+        Edge(Vertex* vertex1_inp, Vertex* vertex2_inp, Edge_Info* edge_info_inp):
+            vertex1(vertex1_inp),
+            vertex2(vertex2_inp),
+            edge_info(edge_info_inp),
+            condition(UNDEFINED) {}
+
+        //returns nullptr if edge is cycle
+        Vertex* next_vertex(const Vertex* cur_vertex);
+    };
+
+
+    //This class describes a graph vertex
+    class Vertex final {
+    private:
+        std::vector<Edge*> edges_; //edges from this vertex
+
+        //counter of edges from graph cycles
+        //after adding all edges supposed in_cycle for this counter before check
+        size_t num_edges_undefined_ = 0;
+
+        size_t number_;
+
+        //for find cycle
+        static void add_cycle_to_data(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                                      size_t begin_iterator,
+                                      std::vector<std::vector<std::pair<Vertex*, Edge*>>>& cycles_data,
+                                      Edge* last_edge);
+    public:
+        bool visited = false; //for graph traversal
+        Condition condition = UNDEFINED;
+
+        //adding edges after starting solving process is UB
+        void add_edge(Edge* edge) {
+            edges_.push_back(edge);
+            if (edge->condition == UNDEFINED) ++num_edges_undefined_;
+        }
+
+        size_t edges_num() const { return edges_.size(); }
+
+        size_t number() const { return number_; }
+
+        void define_number(size_t num) { number_ = num; }
+
+        //returns nullptr if edge_num invalid
+        const Edge* edge(size_t edge_num) const {
+            if(edge_num >= edges_.size()) return nullptr;
+            return edges_[edge_num];
+        }
+
+        size_t num_edges_undefined() const { return num_edges_undefined_; }
+
+        const Edge* find_undefined_edge() const;
+
+        //returns another Vertex of this lone edge (nullptr if can't be done)
+        Vertex* define_lone_edge_as_out_of_cycle();
+
+        //0 - ok, 1 - vertex can be in cycle
+        int define_vertex_outside_any_cycle_as_visited();
+
+        static void find_cycle(std::pair<std::vector<std::pair<Vertex*, size_t>>, std::vector<Edge*>>& trace,
+                               std::vector<std::vector<std::pair<Vertex*, Edge*>>>& all_cycles);
+
+    };
+
+    struct comp_for_build_circuit_graph;
 
     bool validity_ = true;
 
